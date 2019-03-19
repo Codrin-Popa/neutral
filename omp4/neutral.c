@@ -160,18 +160,121 @@ void handle_particles(const int global_nx, const int global_ny, const int nx,
         ncollisions++;
 
         // Handles a collision event
-        int result = collision_event(
-            global_nx, nx, x_off, y_off, master_key, inv_ntotal_particles,
-            distance_to_collision, local_density, cs_absorb_table_keys,
-            cs_scatter_table_keys, cs_absorb_table_values,
-            cs_scatter_table_values, cs_absorb_table_nentries,
-            cs_scatter_table_nentries, pp, p_x, p_y, p_cellx, p_celly, p_weight,
-            p_energy, p_dead, p_omega_x, p_omega_y, p_dt_to_census,
-            p_mfp_to_collision, &counter, &energy_deposition, &number_density,
-            &microscopic_cs_scatter, &microscopic_cs_absorb,
-            &macroscopic_cs_scatter, &macroscopic_cs_absorb,
-            energy_deposition_tally, &scatter_cs_index, &absorb_cs_index, rn,
-            &speed);
+        int result;
+        // int result = collision_event(
+        //     global_nx, nx, x_off, y_off, master_key, inv_ntotal_particles,
+        //     distance_to_collision, local_density, cs_absorb_table_keys,
+        //     cs_scatter_table_keys, cs_absorb_table_values,
+        //     cs_scatter_table_values, cs_absorb_table_nentries,
+        //     cs_scatter_table_nentries, pp, p_x, p_y, p_cellx, p_celly, p_weight,
+        //     p_energy, p_dead, p_omega_x, p_omega_y, p_dt_to_census,
+        //     p_mfp_to_collision, &counter, &energy_deposition, &number_density,
+        //     &microscopic_cs_scatter, &microscopic_cs_absorb,
+        //     &macroscopic_cs_scatter, &macroscopic_cs_absorb,
+        //     energy_deposition_tally, &scatter_cs_index, &absorb_cs_index, rn,
+        //     &speed);
+
+
+      /// BEGIN INLINE
+
+
+      // Energy deposition stored locally for collision, not in tally mesh
+        add_energy_deposition(
+            global_nx, nx, x_off, y_off, p_energy[pp], p_weight[pp],
+            inv_ntotal_particles, distance_to_collision, *number_density,
+            *microscopic_cs_absorb, *microscopic_cs_scatter + *microscopic_cs_absorb, energy_deposition);
+      
+        // Moves the particle to the collision site
+        p_x[pp] += distance_to_collision * p_omega_x[pp];
+        p_y[pp] += distance_to_collision * p_omega_y[pp];
+      
+        const double p_absorb = *macroscopic_cs_absorb /
+                                (*macroscopic_cs_scatter + *macroscopic_cs_absorb);
+      
+        double rn0;
+        double rn1;
+        generate_random_numbers(pp, master_key, *counter, &rn0, &rn1);
+        (*counter)++;
+      
+        if (rn0 < p_absorb) {
+          /* Model particle absorption */
+      
+          // Find the new particle weight after absorption, saving the energy change
+          p_weight[pp] *= (1.0 - p_absorb);
+      
+          if (p_energy[pp] < MIN_ENERGY_OF_INTEREST) {
+            // Energy is too low, so mark the particle for deletion
+            p_dead[pp] = 1;
+      
+            // Need to store tally information as finished with particle
+            update_tallies(nx, x_off, y_off, p_cellx[pp], p_celly[pp],
+                           inv_ntotal_particles, *energy_deposition,
+                           energy_deposition_tally);
+            *energy_deposition = 0.0;
+            result = PARTICLE_DEAD;
+          }
+        } else {
+        
+          /* Model elastic particle scattering */
+      
+          // The following assumes that all particles reside within a two-dimensional
+          // plane, which solves a different equation. Change so that we consider
+          // the full set of directional cosines, allowing scattering between planes.
+      
+          // Choose a random scattering angle between -1 and 1
+          const double mu_cm = 1.0 - 2.0 * rn1;
+      
+          // Calculate the new energy based on the relation to angle of incidence
+          const double e_new = p_energy[pp] *
+                               (MASS_NO * MASS_NO + 2.0 * MASS_NO * mu_cm + 1.0) /
+                               ((MASS_NO + 1.0) * (MASS_NO + 1.0));
+      
+          // Convert the angle into the laboratory frame of reference
+          double cos_theta = 0.5 * ((MASS_NO + 1.0) * sqrt(e_new / p_energy[pp]) -
+                                    (MASS_NO - 1.0) * sqrt(p_energy[pp] / e_new));
+      
+          // Alter the direction of the velocities
+          const double sin_theta = sqrt(1.0 - cos_theta * cos_theta);
+          const double omega_x_new =
+              (p_omega_x[pp] * cos_theta - p_omega_y[pp] * sin_theta);
+          const double omega_y_new =
+              (p_omega_x[pp] * sin_theta + p_omega_y[pp] * cos_theta);
+          p_omega_x[pp] = omega_x_new;
+          p_omega_y[pp] = omega_y_new;
+          p_energy[pp] = e_new;
+        }
+      
+        // Energy has changed so update the cross-sections
+        microscopic_cs_for_energy(
+            cs_scatter_table_keys, cs_scatter_table_values, cs_scatter_table_nentries,
+            p_energy[pp], scatter_cs_index, microscopic_cs_scatter);
+        microscopic_cs_for_energy(
+            cs_absorb_table_keys, cs_absorb_table_values, cs_absorb_table_nentries,
+            p_energy[pp], absorb_cs_index, microscopic_cs_absorb);
+        *number_density = (local_density * AVOGADROS / MOLAR_MASS);
+        *macroscopic_cs_scatter = *number_density * (*microscopic_cs_scatter) * BARNS;
+        *macroscopic_cs_absorb = *number_density * (*microscopic_cs_absorb) * BARNS;
+      
+        // Re-sample number of mean free paths to collision
+        generate_random_numbers(pp, master_key, *counter, &rn0, &rn1);
+        (*counter)++;
+        p_mfp_to_collision[pp] = -log(rn0) / *macroscopic_cs_scatter;
+        p_dt_to_census[pp] -= distance_to_collision / *speed;
+        *speed = sqrt((2.0 * p_energy[pp] * eV_TO_J) / PARTICLE_MASS);
+      
+        result = PARTICLE_CONTINUE;
+
+
+
+
+
+      /// END INLINE
+
+
+
+
+
+
 
         if (result != PARTICLE_CONTINUE) {
           break;
@@ -219,108 +322,108 @@ void handle_particles(const int global_nx, const int global_ny, const int nx,
 }
 
 // Handles a collision event
-int collision_event(
-    const int global_nx, const int nx, const int x_off, const int y_off,
-    const uint64_t master_key, const double inv_ntotal_particles,
-    const double distance_to_collision, const double local_density,
-    const double* cs_absorb_table_keys, const double* cs_scatter_table_keys,
-    const double* cs_absorb_table_values, const double* cs_scatter_table_values,
-    const int cs_absorb_table_nentries, const int cs_scatter_table_nentries,
-    const uint64_t pp, double* p_x, double* p_y, int* p_cellx, int* p_celly,
-    double* p_weight, double* p_energy, int* p_dead, double* p_omega_x,
-    double* p_omega_y, double* p_dt_to_census, double* p_mfp_to_collision,
-    uint64_t* counter, double* energy_deposition, double* number_density,
-    double* microscopic_cs_scatter, double* microscopic_cs_absorb,
-    double* macroscopic_cs_scatter, double* macroscopic_cs_absorb,
-    double* energy_deposition_tally, int* scatter_cs_index,
-    int* absorb_cs_index, double rn[NRANDOM_NUMBERS], double* speed) {
+// int collision_event(
+//     const int global_nx, const int nx, const int x_off, const int y_off,
+//     const uint64_t master_key, const double inv_ntotal_particles,
+//     const double distance_to_collision, const double local_density,
+//     const double* cs_absorb_table_keys, const double* cs_scatter_table_keys,
+//     const double* cs_absorb_table_values, const double* cs_scatter_table_values,
+//     const int cs_absorb_table_nentries, const int cs_scatter_table_nentries,
+//     const uint64_t pp, double* p_x, double* p_y, int* p_cellx, int* p_celly,
+//     double* p_weight, double* p_energy, int* p_dead, double* p_omega_x,
+//     double* p_omega_y, double* p_dt_to_census, double* p_mfp_to_collision,
+//     uint64_t* counter, double* energy_deposition, double* number_density,
+//     double* microscopic_cs_scatter, double* microscopic_cs_absorb,
+//     double* macroscopic_cs_scatter, double* macroscopic_cs_absorb,
+//     double* energy_deposition_tally, int* scatter_cs_index,
+//     int* absorb_cs_index, double rn[NRANDOM_NUMBERS], double* speed) {
 
-  // Energy deposition stored locally for collision, not in tally mesh
-  add_energy_deposition(
-      global_nx, nx, x_off, y_off, p_energy[pp], p_weight[pp],
-      inv_ntotal_particles, distance_to_collision, *number_density,
-      *microscopic_cs_absorb, *microscopic_cs_scatter + *microscopic_cs_absorb, energy_deposition);
+//   // Energy deposition stored locally for collision, not in tally mesh
+//   add_energy_deposition(
+//       global_nx, nx, x_off, y_off, p_energy[pp], p_weight[pp],
+//       inv_ntotal_particles, distance_to_collision, *number_density,
+//       *microscopic_cs_absorb, *microscopic_cs_scatter + *microscopic_cs_absorb, energy_deposition);
 
-  // Moves the particle to the collision site
-  p_x[pp] += distance_to_collision * p_omega_x[pp];
-  p_y[pp] += distance_to_collision * p_omega_y[pp];
+//   // Moves the particle to the collision site
+//   p_x[pp] += distance_to_collision * p_omega_x[pp];
+//   p_y[pp] += distance_to_collision * p_omega_y[pp];
 
-  const double p_absorb = *macroscopic_cs_absorb /
-                          (*macroscopic_cs_scatter + *macroscopic_cs_absorb);
+//   const double p_absorb = *macroscopic_cs_absorb /
+//                           (*macroscopic_cs_scatter + *macroscopic_cs_absorb);
 
-  double rn0;
-  double rn1;
-  generate_random_numbers(pp, master_key, *counter, &rn0, &rn1);
-  (*counter)++;
+//   double rn0;
+//   double rn1;
+//   generate_random_numbers(pp, master_key, *counter, &rn0, &rn1);
+//   (*counter)++;
 
-  if (rn0 < p_absorb) {
-    /* Model particle absorption */
+//   if (rn0 < p_absorb) {
+//     /* Model particle absorption */
 
-    // Find the new particle weight after absorption, saving the energy change
-    p_weight[pp] *= (1.0 - p_absorb);
+//     // Find the new particle weight after absorption, saving the energy change
+//     p_weight[pp] *= (1.0 - p_absorb);
 
-    if (p_energy[pp] < MIN_ENERGY_OF_INTEREST) {
-      // Energy is too low, so mark the particle for deletion
-      p_dead[pp] = 1;
+//     if (p_energy[pp] < MIN_ENERGY_OF_INTEREST) {
+//       // Energy is too low, so mark the particle for deletion
+//       p_dead[pp] = 1;
 
-      // Need to store tally information as finished with particle
-      update_tallies(nx, x_off, y_off, p_cellx[pp], p_celly[pp],
-                     inv_ntotal_particles, *energy_deposition,
-                     energy_deposition_tally);
-      *energy_deposition = 0.0;
-      return PARTICLE_DEAD;
-    }
-  } else {
+//       // Need to store tally information as finished with particle
+//       update_tallies(nx, x_off, y_off, p_cellx[pp], p_celly[pp],
+//                      inv_ntotal_particles, *energy_deposition,
+//                      energy_deposition_tally);
+//       *energy_deposition = 0.0;
+//       return PARTICLE_DEAD;
+//     }
+//   } else {
 
-    /* Model elastic particle scattering */
+//     /* Model elastic particle scattering */
 
-    // The following assumes that all particles reside within a two-dimensional
-    // plane, which solves a different equation. Change so that we consider
-    // the full set of directional cosines, allowing scattering between planes.
+//     // The following assumes that all particles reside within a two-dimensional
+//     // plane, which solves a different equation. Change so that we consider
+//     // the full set of directional cosines, allowing scattering between planes.
 
-    // Choose a random scattering angle between -1 and 1
-    const double mu_cm = 1.0 - 2.0 * rn1;
+//     // Choose a random scattering angle between -1 and 1
+//     const double mu_cm = 1.0 - 2.0 * rn1;
 
-    // Calculate the new energy based on the relation to angle of incidence
-    const double e_new = p_energy[pp] *
-                         (MASS_NO * MASS_NO + 2.0 * MASS_NO * mu_cm + 1.0) /
-                         ((MASS_NO + 1.0) * (MASS_NO + 1.0));
+//     // Calculate the new energy based on the relation to angle of incidence
+//     const double e_new = p_energy[pp] *
+//                          (MASS_NO * MASS_NO + 2.0 * MASS_NO * mu_cm + 1.0) /
+//                          ((MASS_NO + 1.0) * (MASS_NO + 1.0));
 
-    // Convert the angle into the laboratory frame of reference
-    double cos_theta = 0.5 * ((MASS_NO + 1.0) * sqrt(e_new / p_energy[pp]) -
-                              (MASS_NO - 1.0) * sqrt(p_energy[pp] / e_new));
+//     // Convert the angle into the laboratory frame of reference
+//     double cos_theta = 0.5 * ((MASS_NO + 1.0) * sqrt(e_new / p_energy[pp]) -
+//                               (MASS_NO - 1.0) * sqrt(p_energy[pp] / e_new));
 
-    // Alter the direction of the velocities
-    const double sin_theta = sqrt(1.0 - cos_theta * cos_theta);
-    const double omega_x_new =
-        (p_omega_x[pp] * cos_theta - p_omega_y[pp] * sin_theta);
-    const double omega_y_new =
-        (p_omega_x[pp] * sin_theta + p_omega_y[pp] * cos_theta);
-    p_omega_x[pp] = omega_x_new;
-    p_omega_y[pp] = omega_y_new;
-    p_energy[pp] = e_new;
-  }
+//     // Alter the direction of the velocities
+//     const double sin_theta = sqrt(1.0 - cos_theta * cos_theta);
+//     const double omega_x_new =
+//         (p_omega_x[pp] * cos_theta - p_omega_y[pp] * sin_theta);
+//     const double omega_y_new =
+//         (p_omega_x[pp] * sin_theta + p_omega_y[pp] * cos_theta);
+//     p_omega_x[pp] = omega_x_new;
+//     p_omega_y[pp] = omega_y_new;
+//     p_energy[pp] = e_new;
+//   }
 
-  // Energy has changed so update the cross-sections
-  microscopic_cs_for_energy(
-      cs_scatter_table_keys, cs_scatter_table_values, cs_scatter_table_nentries,
-      p_energy[pp], scatter_cs_index, microscopic_cs_scatter);
-  microscopic_cs_for_energy(
-      cs_absorb_table_keys, cs_absorb_table_values, cs_absorb_table_nentries,
-      p_energy[pp], absorb_cs_index, microscopic_cs_absorb);
-  *number_density = (local_density * AVOGADROS / MOLAR_MASS);
-  *macroscopic_cs_scatter = *number_density * (*microscopic_cs_scatter) * BARNS;
-  *macroscopic_cs_absorb = *number_density * (*microscopic_cs_absorb) * BARNS;
+//   // Energy has changed so update the cross-sections
+//   microscopic_cs_for_energy(
+//       cs_scatter_table_keys, cs_scatter_table_values, cs_scatter_table_nentries,
+//       p_energy[pp], scatter_cs_index, microscopic_cs_scatter);
+//   microscopic_cs_for_energy(
+//       cs_absorb_table_keys, cs_absorb_table_values, cs_absorb_table_nentries,
+//       p_energy[pp], absorb_cs_index, microscopic_cs_absorb);
+//   *number_density = (local_density * AVOGADROS / MOLAR_MASS);
+//   *macroscopic_cs_scatter = *number_density * (*microscopic_cs_scatter) * BARNS;
+//   *macroscopic_cs_absorb = *number_density * (*microscopic_cs_absorb) * BARNS;
 
-  // Re-sample number of mean free paths to collision
-  generate_random_numbers(pp, master_key, *counter, &rn0, &rn1);
-  (*counter)++;
-  p_mfp_to_collision[pp] = -log(rn0) / *macroscopic_cs_scatter;
-  p_dt_to_census[pp] -= distance_to_collision / *speed;
-  *speed = sqrt((2.0 * p_energy[pp] * eV_TO_J) / PARTICLE_MASS);
+//   // Re-sample number of mean free paths to collision
+//   generate_random_numbers(pp, master_key, *counter, &rn0, &rn1);
+//   (*counter)++;
+//   p_mfp_to_collision[pp] = -log(rn0) / *macroscopic_cs_scatter;
+//   p_dt_to_census[pp] -= distance_to_collision / *speed;
+//   *speed = sqrt((2.0 * p_energy[pp] * eV_TO_J) / PARTICLE_MASS);
 
-  return PARTICLE_CONTINUE;
-}
+//   return PARTICLE_CONTINUE;
+// }
 
 // Handle facet event
 int
