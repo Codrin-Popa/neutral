@@ -19,8 +19,8 @@ CFLAGS_CRAY				 = -hfp3
 CFLAGS_XL					 = -O3 -qsmp=omp
 CFLAGS_XL_OMP4		 = -qsmp -qoffload
 CFLAGS_CLANG			 = -std=gnu99 -fopenmp=libiomp5 -march=native -Wall
-CFLAGS_CLANG_OMP4  = -O3 -Wall -fopenmp-targets=nvptx64-nvidia-cuda -fopenmp-nonaliased-maps \
-										 -fopenmp=libomp --cuda-path=$(CUDA_PATH) -DCLANG
+CFLAGS_CLANG_OMP4  = -O3 -Wall -fopenmp-targets=nvptx64-nvidia-cuda -lm \
+										 -fopenmp=libomp  -DCLANG
 CFLAGS_PGI				 = -fast -mp
 CFLAGS_PGI_NV			 = -fast -acc -ta=tesla:cc60 -Minfo=acc
 CFLAGS_PGI_MC			 = -ta=multicore -fast 
@@ -36,11 +36,6 @@ ifeq ($(COMPILER), CLANG_OMP4)
   CHECK_CUDA_ROOT = yes
 endif
 
-ifeq ($(CHECK_CUDA_ROOT), yes)
-ifeq ("${CUDA_PATH}", "")
-$(error "$$CUDA_PATH is not set, please set this to the root of your CUDA install.")
-endif
-endif
 
 ifeq ($(DEBUG), yes)
   OPTIONS += -O0 -DDEBUG -g

@@ -135,7 +135,7 @@ void handle_particles(const int global_nx, const int global_ny, const int nx,
     if (initial) {
       p_dt_to_census[pp] = dt;
       generate_random_numbers(pp, master_key, counter++, &rn[0], &rn[1]);
-      p_mfp_to_collision[pp] = -log(rn[0]) / macroscopic_cs_scatter;
+      p_mfp_to_collision[pp] = 0.0; //-log(rn[0]) / macroscopic_cs_scatter;
     }
 
     // Loop until we have reached census
@@ -181,20 +181,20 @@ void handle_particles(const int global_nx, const int global_ny, const int nx,
       // Energy deposition stored locally for collision, not in tally mesh
         add_energy_deposition(
             global_nx, nx, x_off, y_off, p_energy[pp], p_weight[pp],
-            inv_ntotal_particles, distance_to_collision, *number_density,
-            *microscopic_cs_absorb, *microscopic_cs_scatter + *microscopic_cs_absorb, energy_deposition);
+            inv_ntotal_particles, distance_to_collision, number_density,
+            microscopic_cs_absorb, microscopic_cs_scatter + microscopic_cs_absorb, &energy_deposition);
       
         // Moves the particle to the collision site
         p_x[pp] += distance_to_collision * p_omega_x[pp];
         p_y[pp] += distance_to_collision * p_omega_y[pp];
       
-        const double p_absorb = *macroscopic_cs_absorb /
-                                (*macroscopic_cs_scatter + *macroscopic_cs_absorb);
+        const double p_absorb = macroscopic_cs_absorb /
+                                (macroscopic_cs_scatter + macroscopic_cs_absorb);
       
         double rn0;
         double rn1;
-        generate_random_numbers(pp, master_key, *counter, &rn0, &rn1);
-        (*counter)++;
+        generate_random_numbers(pp, master_key, counter, &rn0, &rn1);
+        (counter)++;
       
         if (rn0 < p_absorb) {
           /* Model particle absorption */
@@ -208,9 +208,9 @@ void handle_particles(const int global_nx, const int global_ny, const int nx,
       
             // Need to store tally information as finished with particle
             update_tallies(nx, x_off, y_off, p_cellx[pp], p_celly[pp],
-                           inv_ntotal_particles, *energy_deposition,
+                           inv_ntotal_particles, energy_deposition,
                            energy_deposition_tally);
-            *energy_deposition = 0.0;
+            energy_deposition = 0.0;
             result = PARTICLE_DEAD;
           }
         } else {
@@ -247,20 +247,20 @@ void handle_particles(const int global_nx, const int global_ny, const int nx,
         // Energy has changed so update the cross-sections
         microscopic_cs_for_energy(
             cs_scatter_table_keys, cs_scatter_table_values, cs_scatter_table_nentries,
-            p_energy[pp], scatter_cs_index, microscopic_cs_scatter);
+            p_energy[pp], &scatter_cs_index, &microscopic_cs_scatter);
         microscopic_cs_for_energy(
             cs_absorb_table_keys, cs_absorb_table_values, cs_absorb_table_nentries,
-            p_energy[pp], absorb_cs_index, microscopic_cs_absorb);
-        *number_density = (local_density * AVOGADROS / MOLAR_MASS);
-        *macroscopic_cs_scatter = *number_density * (*microscopic_cs_scatter) * BARNS;
-        *macroscopic_cs_absorb = *number_density * (*microscopic_cs_absorb) * BARNS;
+            p_energy[pp], &absorb_cs_index, &microscopic_cs_absorb);
+        number_density = (local_density * AVOGADROS / MOLAR_MASS);
+        macroscopic_cs_scatter = number_density * (microscopic_cs_scatter) * BARNS;
+        macroscopic_cs_absorb = number_density * (microscopic_cs_absorb) * BARNS;
       
         // Re-sample number of mean free paths to collision
-        generate_random_numbers(pp, master_key, *counter, &rn0, &rn1);
-        (*counter)++;
-        p_mfp_to_collision[pp] = -log(rn0) / *macroscopic_cs_scatter;
-        p_dt_to_census[pp] -= distance_to_collision / *speed;
-        *speed = sqrt((2.0 * p_energy[pp] * eV_TO_J) / PARTICLE_MASS);
+        generate_random_numbers(pp, master_key, counter, &rn0, &rn1);
+        (counter)++;
+        p_mfp_to_collision[pp] = 0.0;//-log(rn0) / macroscopic_cs_scatter;
+        p_dt_to_census[pp] -= distance_to_collision / speed;
+        speed = sqrt((2.0 * p_energy[pp] * eV_TO_J) / PARTICLE_MASS);
       
         result = PARTICLE_CONTINUE;
 
@@ -795,8 +795,8 @@ size_t inject_particles(const int nparticles, const int global_nx,
     // value which introduces very very very small bias...
     generate_random_numbers(pp, 0, 1, &rn[0], &rn[1]);
     const double theta = 2.0 * M_PI * rn[0];
-    p_omega_x[pp] = cos(theta);
-    p_omega_y[pp] = sin(theta);
+    p_omega_x[pp] = omp_math_cos(theta);
+    p_omega_y[pp] = omp_math_sin(theta);
 
     // This approximation sets mono-energetic initial state for source
     // particles
