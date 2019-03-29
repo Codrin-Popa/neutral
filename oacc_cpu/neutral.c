@@ -58,8 +58,8 @@ void handle_particles(const int global_nx, const int global_ny, const int nx,
                       double* energy_deposition_tally) {
 
   int nthreads = 0;
-#pragma omp parallel
-  { nthreads = omp_get_num_threads(); }
+//#pragma acc parallel
+ // { nthreads = omp_get_num_threads(); }
 
   uint64_t nfacets = 0;
   uint64_t ncollisions = 0;
@@ -69,28 +69,29 @@ void handle_particles(const int global_nx, const int global_ny, const int nx,
   const int np_remainder = nparticles_to_process % nthreads;
 
 // The main particle loop
-#pragma omp parallel reduction(+ : nfacets, ncollisions, nparticles)
+#pragma acc parallel reduction(+ : nfacets, ncollisions, nparticles)
   {
-    const int tid = omp_get_thread_num();
+    //const int tid = omp_get_thread_num();
 
     // Calculate the particles offset, accounting for some remainder
-    const int rem = (tid < np_remainder);
-    const int particles_off = tid * np_per_thread + min(tid, np_remainder);
+    //const int rem = (tid < np_remainder);
+   // const int particles_off = tid * np_per_thread + min(tid, np_remainder);
 
-    int result = PARTICLE_CONTINUE;
-
-    for (int pp = 0; pp < np_per_thread + rem; ++pp) {
+    //int result = PARTICLE_CONTINUE;
+    
+    #pragma acc loop independent
+    for (int pp = 0; pp < nparticles_to_process; ++pp) {
       // (1) particle can stream and reach census
       // (2) particle can collide and either
       //      - the particle will be absorbed
       //      - the particle will scatter (this means the energy changes)
       // (3) particle encounters boundary region, transports to another cell
-
+      int result = PARTICLE_CONTINUE;
       // Current particle
-      const int pid = particles_off + pp;
-      Particle* particle = &particles_start[pid];
+      //const int pid = particles_off + pp;
+      Particle* particle = &particles_start[pp];
 
-      const uint64_t pkey = pid;
+      const uint64_t pkey = pp;
 
       if (particle->dead) {
         continue;
@@ -158,7 +159,7 @@ void handle_particles(const int global_nx, const int global_ny, const int nx,
 
           // Handles a collision event
           result = collision_event(
-              global_nx, nx, x_off, y_off, pid, master_key,
+              global_nx, nx, x_off, y_off, pp, master_key,
               inv_ntotal_particles, distance_to_collision, local_density,
               cs_scatter_table, cs_absorb_table, particle, &counter,
               &energy_deposition, &number_density, &microscopic_cs_scatter,
@@ -418,7 +419,7 @@ inline void update_tallies(const int nx, const int x_off,
   const int cellx = particle->cellx - x_off;
   const int celly = particle->celly - y_off;
 
-#pragma omp atomic update
+#pragma acc atomic 
   energy_deposition_tally[celly * nx + cellx] +=
       energy_deposition * inv_ntotal_particles;
 }
@@ -577,7 +578,7 @@ size_t inject_particles(const int nparticles, const int global_nx,
   }
 
   START_PROFILING(&compute_profile);
-#pragma omp parallel for
+#pragma acc parallel loop
   for (int kk = 0; kk < nparticles; ++kk) {
     Particle* particle = &(*particles)[kk];
 
@@ -613,7 +614,7 @@ size_t inject_particles(const int nparticles, const int global_nx,
     // Generating theta has uniform density, however 0.0 and 1.0 produce the
     // same
     // value which introduces very very very small bias...
-    double rn2 = generate_random_numbers(pp, 0, 2);
+    double rn2 = generate_random_numbers(kk, 0, 2);
     const double theta = 2.0 * M_PI * rn2;
     particle->omega_x = cos(theta);
     particle->omega_y = sin(theta);
