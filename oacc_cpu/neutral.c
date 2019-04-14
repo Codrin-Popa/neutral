@@ -69,16 +69,19 @@ void handle_particles(const int global_nx, const int global_ny, const int nx,
   const int np_remainder = nparticles_to_process % nthreads;
 
 // The main particle loop
-#pragma acc parallel reduction(+ : nfacets, ncollisions, nparticles)
-  {
-    //const int tid = omp_get_thread_num();
-
-    // Calculate the particles offset, accounting for some remainder
-    //const int rem = (tid < np_remainder);
-   // const int particles_off = tid * np_per_thread + min(tid, np_remainder);
-
-    //int result = PARTICLE_CONTINUE;
-    
+#pragma acc parallel present(\
+    edgex[:nx],\
+    edgey[:ny],\
+    edgedx[:nx],\
+    edgedy[:ny],\
+    density[:nx*ny],\
+    energy_deposition_tally[:nx*ny],\
+    cs_scatter_keys[:cs_scatter_nentries], \
+    cs_scatter_values[:cs_scatter_nentries], \
+    cs_absorb_keys[:cs_absorb_nentries], \
+    cs_absorb_values[:cs_absorb_nentries],\
+    particles_start[:nparticles_to_process] \
+  reduction(+ : nfacets, ncollisions, nparticles)
     #pragma acc loop independent
     for (int pp = 0; pp < nparticles_to_process; ++pp) {
       // (1) particle can stream and reach census
@@ -201,7 +204,6 @@ void handle_particles(const int global_nx, const int global_ny, const int nx,
         }
       }
     }
-  }
 
   // Store a total number of facets and collisions
   *facets += nfacets;
@@ -419,7 +421,7 @@ inline void update_tallies(const int nx, const int x_off,
   const int cellx = particle->cellx - x_off;
   const int celly = particle->celly - y_off;
 
-#pragma acc atomic 
+#pragma acc atomic
   energy_deposition_tally[celly * nx + cellx] +=
       energy_deposition * inv_ntotal_particles;
 }
@@ -527,6 +529,8 @@ void validate(const int nx, const int ny, const char* params_filename,
 
   // Reduce the entire energy deposition tally locally
   double local_energy_tally = 0.0;
+  #pragma acc kernels
+  #pragma acc loop independent
   for (int ii = 0; ii < nx * ny; ++ii) {
     local_energy_tally += energy_deposition_tally[ii];
   }
@@ -578,7 +582,8 @@ size_t inject_particles(const int nparticles, const int global_nx,
   }
 
   START_PROFILING(&compute_profile);
-#pragma acc parallel loop
+#pragma acc kernels
+#pragma acc loop independent
   for (int kk = 0; kk < nparticles; ++kk) {
     Particle* particle = &(*particles)[kk];
 
