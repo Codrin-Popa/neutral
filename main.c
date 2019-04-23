@@ -101,11 +101,11 @@ int main(int argc, char** argv) {
 
 
 
-  for (tt = 1; tt <= mesh.niters; ++tt) {
-
     for(int p = 0; p < 49; p++) {
       hist[p] = 0;
     }
+
+  for (tt = 1; tt <= mesh.niters; ++tt) {
 
     if (mesh.rank == MASTER) {
       printf("\nIteration  %d\n", tt);
