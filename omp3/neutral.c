@@ -190,7 +190,7 @@ void handle_particles(const int global_nx, const int global_ny, const int nx,
                        distance_to_census, cell_mfp, particle,
                        &energy_deposition, &number_density,
                        &microscopic_cs_scatter, &microscopic_cs_absorb,
-                       energy_deposition_tally);
+                       energy_deposition_tally, hist);
 
           break;
         }
@@ -424,6 +424,16 @@ inline void update_tallies(const int nx, const int x_off,
 #pragma omp atomic update
   energy_deposition_tally[celly * nx + cellx] +=
       energy_deposition * inv_ntotal_particles;
+
+  double val = energy_deposition * inv_ntotal_particles;
+
+  for(int p = 0; p < 20; p++) {
+      if( range[p] <= val && val < range[p+1]) {
+        #pragma omp atomic update
+       hist[p]++;
+     }
+  }
+
 }
 
 // Calculate the distance to the next facet
