@@ -12,7 +12,8 @@ void handle_particles(const int global_nx, const int global_ny, const int nx,
                       const int nparticles_to_process,
                       Particle* particles_start, CrossSection* cs_scatter_table,
                       CrossSection* cs_absorb_table,
-                      double* energy_deposition_tally);
+                      double* energy_deposition_tally,
+                    int* hist);
 
 // Handle facet event
 int facet_event(const int global_nx, const int global_ny, const int nx,
@@ -25,7 +26,8 @@ int facet_event(const int global_nx, const int global_ny, const int nx,
                 double* microscopic_cs_scatter, double* microscopic_cs_absorb,
                 double* macroscopic_cs_scatter, double* macroscopic_cs_absorb,
                 double* energy_deposition_tally, int* cellx, int* celly,
-                double* local_density);
+                double* local_density,
+              int* hist);
 
 // Handles a collision event
 int collision_event(
@@ -38,7 +40,7 @@ int collision_event(
     double* microscopic_cs_scatter, double* microscopic_cs_absorb,
     double* macroscopic_cs_scatter, double* macroscopic_cs_absorb,
     double* energy_deposition_tally, int* scatter_cs_index,
-    int* absorb_cs_index, double rn[NRANDOM_NUMBERS], double* speed);
+    int* absorb_cs_index, double rn[NRANDOM_NUMBERS], double* speed, int* hist);
 
 void census_event(const int global_nx, const int nx, const int x_off,
                   const int y_off, const double inv_ntotal_particles,
@@ -46,13 +48,13 @@ void census_event(const int global_nx, const int nx, const int x_off,
                   Particle* particle, double* energy_deposition,
                   double* number_density, double* microscopic_cs_scatter,
                   double* microscopic_cs_absorb,
-                  double* energy_deposition_tally);
+                  double* energy_deposition_tally, int* hist);
 
 // Tallies the energy deposition in the cell
 void update_tallies(const int nx, const int x_off, const int y_off,
                     Particle* particle, const double inv_ntotal_particles,
                     const double energy_deposition,
-                    double* energy_deposition_tally);
+                    double* energy_deposition_tally, int* hist);
 
 // Handle the collision event, including absorption and scattering
 int handle_collision(Particle* particle, const double macroscopic_cs_absorb,

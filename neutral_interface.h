@@ -10,14 +10,14 @@ extern "C" {
 
 void solve_transport_2d(
     const int nx, const int ny, const int global_nx, const int global_ny,
-    const uint64_t master_key, const int pad, const int x_off, const int y_off, 
+    const uint64_t master_key, const int pad, const int x_off, const int y_off,
     const double dt, const int ntotal_particles, int* nlocal_particles,
     const int* neighbours, Particle* particles, const double* density,
     const double* edgex, const double* edgey, const double* edgedx,
     const double* edgedy, CrossSection* cs_scatter_table,
     CrossSection* cs_absorb_table, double* energy_deposition_tally,
     uint64_t* reduce_array0, uint64_t* reduce_array1, uint64_t* reduce_array2,
-    uint64_t* facet_events, uint64_t* collision_events);
+    uint64_t* facet_events, uint64_t* collision_events, int* hist);
 
 // Initialises a new particle ready for tracking
 size_t inject_particles(const int nparticles, const int global_nx,

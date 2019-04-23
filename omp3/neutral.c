@@ -25,7 +25,7 @@ void solve_transport_2d(
     const double* edgedy, CrossSection* cs_scatter_table,
     CrossSection* cs_absorb_table, double* energy_deposition_tally,
     uint64_t* reduce_array0, uint64_t* reduce_array1, uint64_t* reduce_array2,
-    uint64_t* facet_events, uint64_t* collision_events) {
+    uint64_t* facet_events, uint64_t* collision_events, int* hist) {
 
   if (!(*nparticles)) {
     printf("Out of particles\n");
@@ -36,7 +36,7 @@ void solve_transport_2d(
                    1, dt, neighbours, density, edgex, edgey, edgedx, edgedy,
                    facet_events, collision_events, ntotal_particles,
                    *nparticles, particles, cs_scatter_table, cs_absorb_table,
-                   energy_deposition_tally);
+                   energy_deposition_tally, hist);
 }
 
 // Handles the current active batch of particles
@@ -51,7 +51,7 @@ void handle_particles(const int global_nx, const int global_ny, const int nx,
                       const int nparticles_to_process,
                       Particle* particles_start, CrossSection* cs_scatter_table,
                       CrossSection* cs_absorb_table,
-                      double* energy_deposition_tally) {
+                      double* energy_deposition_tally, int* hist) {
 
   int nthreads = 0;
 #pragma omp parallel
@@ -216,7 +216,7 @@ inline int collision_event(
     double* microscopic_cs_scatter, double* microscopic_cs_absorb,
     double* macroscopic_cs_scatter, double* macroscopic_cs_absorb,
     double* energy_deposition_tally, int* scatter_cs_index,
-    int* absorb_cs_index, double rn[NRANDOM_NUMBERS], double* speed) {
+    int* absorb_cs_index, double rn[NRANDOM_NUMBERS], double* speed, int* hist) {
 
   // Energy deposition stored locally for collision, not in tally mesh
   *energy_deposition += calculate_energy_deposition(
@@ -246,7 +246,7 @@ inline int collision_event(
 
       // Need to store tally information as finished with particle
       update_tallies(nx, x_off, y_off, particle, inv_ntotal_particles,
-                     *energy_deposition, energy_deposition_tally);
+                     *energy_deposition, energy_deposition_tally, hist);
       *energy_deposition = 0.0;
       return PARTICLE_DEAD;
     }
@@ -310,7 +310,7 @@ facet_event(const int global_nx, const int global_ny, const int nx,
             double* microscopic_cs_scatter, double* microscopic_cs_absorb,
             double* macroscopic_cs_scatter, double* macroscopic_cs_absorb,
             double* energy_deposition_tally, int* cellx, int* celly,
-            double* local_density) {
+            double* local_density, int* hist) {
 
   // Update the mean free paths until collision
   particle->mfp_to_collision -= (distance_to_facet / cell_mfp);
@@ -323,7 +323,7 @@ facet_event(const int global_nx, const int global_ny, const int nx,
 
   // Update tallies as we leave a cell
   update_tallies(nx, x_off, y_off, particle, inv_ntotal_particles,
-                 *energy_deposition, energy_deposition_tally);
+                 *energy_deposition, energy_deposition_tally, hist);
   *energy_deposition = 0.0;
 
   // Move the particle to the facet
@@ -386,7 +386,7 @@ census_event(const int global_nx, const int nx, const int x_off,
              const double distance_to_census, const double cell_mfp,
              Particle* particle, double* energy_deposition,
              double* number_density, double* microscopic_cs_scatter,
-             double* microscopic_cs_absorb, double* energy_deposition_tally) {
+             double* microscopic_cs_absorb, double* energy_deposition_tally, int* hist) {
 
   // We have not changed cell or energy level at this stage
   particle->x += distance_to_census * particle->omega_x;
@@ -399,7 +399,7 @@ census_event(const int global_nx, const int nx, const int x_off,
 
   // Need to store tally information as finished with particle
   update_tallies(nx, x_off, y_off, particle, inv_ntotal_particles,
-                 *energy_deposition, energy_deposition_tally);
+                 *energy_deposition, energy_deposition_tally, hist);
 
   particle->dt_to_census = 0.0;
 }
@@ -409,7 +409,14 @@ inline void update_tallies(const int nx, const int x_off,
                                   const int y_off, Particle* particle,
                                   const double inv_ntotal_particles,
                                   const double energy_deposition,
-                                  double* energy_deposition_tally) {
+                                  double* energy_deposition_tally,
+                                  int* hist) {
+
+  double range[20] = {1.0e-10, 1.0e-9, 1.0e-8, 1.0e-7, 1.0e-6, 1.0e-5,
+                      1.0e-4, 1.0e-3, 1.0e-2, 1.0e-1, 1.0e+0, 1.0e+1,
+                      1.0e+2, 1.0e+3, 1.0e+4, 1.0e+5, 1.0e+6, 1.0e+7,
+                      1.0e+8, 1.0e+9, 1.0e+10, 1.0e+11};
+
 
   const int cellx = particle->cellx - x_off;
   const int celly = particle->celly - y_off;

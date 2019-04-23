@@ -64,7 +64,7 @@ int main(int argc, char** argv) {
   initialise_comms(&mesh);
   initialise_mesh_2d(&mesh);
   SharedData shared_data = {0};
-  initialise_shared_data_2d(mesh.local_nx, mesh.local_ny, mesh.pad, mesh.width, 
+  initialise_shared_data_2d(mesh.local_nx, mesh.local_ny, mesh.pad, mesh.width,
       mesh.height, neutral_data.neutral_params_filename, mesh.edgex, mesh.edgey, &shared_data);
 
   handle_boundary_2d(mesh.local_nx, mesh.local_ny, &mesh, shared_data.density,
@@ -81,8 +81,31 @@ int main(int argc, char** argv) {
 
   struct Profile profile;
 
- 
+  int hist[20];
+    // double range[20] = {1.0e-10, 1.0e-9, 1.0e-8, 1.0e-7, 1.0e-6, 1.0e-5,
+    //                     1.0e-4, 1.0e-3, 1.0e-2, 1.0e-1, 1.0e+0, 1.0e+1,
+    //                     1.0e+2, 1.0e+3, 1.0e+4, 1.0e+5, 1.0e+6, 1.0e+7,
+    //                     1.0e+8, 1.0e+9, 1.0e+10, 1.0e+11};
+
+    // for(int p = 0; p < 20; p++) {
+    //   hist[p] = 0;
+    //   for(int i = 0; i < 4000; i++) {
+    //     for(int j = 0; j < 4000; j++) {
+    //         double val = neutral_data.energy_deposition_tally[i*4000 + j];
+    //         if( range[p] <= val && val < range[p+1]) hist[p]++;
+    //     }
+    //   }
+    //   printf("hist %d: %d\n", p, hist[p]);
+    //   // printf("%lf \n", range[p]);
+    // }
+
+
+
   for (tt = 1; tt <= mesh.niters; ++tt) {
+
+    for(int p = 0; p < 20; p++) {
+      hist[p] = 0;
+    }
 
     if (mesh.rank == MASTER) {
       printf("\nIteration  %d\n", tt);
@@ -95,7 +118,7 @@ int main(int argc, char** argv) {
 
     uint64_t facet_events = 0;
     uint64_t collision_events = 0;
-     
+
     START_PROFILING(&profile);
     // Begin the main solve step
     solve_transport_2d(
@@ -107,10 +130,10 @@ int main(int argc, char** argv) {
         neutral_data.cs_scatter_table, neutral_data.cs_absorb_table,
         neutral_data.energy_deposition_tally, neutral_data.nfacets_reduce_array,
         neutral_data.ncollisions_reduce_array, neutral_data.nprocessed_reduce_array,
-        &facet_events, &collision_events);
+        &facet_events, &collision_events , hist);
 
     barrier();
-    
+
     const char p = '0' + tt;
     STOP_PROFILING(&profile, &p);
     double step_time = profile.profiler_entries[tt-1].time;
@@ -125,6 +148,11 @@ int main(int argc, char** argv) {
     printf("Collision Events / s %.2e\n", collision_events / step_time);
 
     elapsed_sim_time += mesh.dt;
+
+    for(int p = 0; p < 20; p++) {
+      printf("hist %d: %d\n", p, hist[p]);
+    }
+
 
     if (visit_dump) {
       char tally_name[100];
