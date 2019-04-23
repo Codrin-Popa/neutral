@@ -81,7 +81,7 @@ int main(int argc, char** argv) {
 
   struct Profile profile;
 
-  int hist[20];
+  int hist[49];
     // double range[20] = {1.0e-10, 1.0e-9, 1.0e-8, 1.0e-7, 1.0e-6, 1.0e-5,
     //                     1.0e-4, 1.0e-3, 1.0e-2, 1.0e-1, 1.0e+0, 1.0e+1,
     //                     1.0e+2, 1.0e+3, 1.0e+4, 1.0e+5, 1.0e+6, 1.0e+7,
@@ -103,7 +103,7 @@ int main(int argc, char** argv) {
 
   for (tt = 1; tt <= mesh.niters; ++tt) {
 
-    for(int p = 0; p < 20; p++) {
+    for(int p = 0; p < 49; p++) {
       hist[p] = 0;
     }
 
@@ -149,7 +149,7 @@ int main(int argc, char** argv) {
 
     elapsed_sim_time += mesh.dt;
 
-    for(int p = 0; p < 20; p++) {
+    for(int p = 0; p < 49; p++) {
       printf("hist %d: %d\n", p, hist[p]);
     }
 
