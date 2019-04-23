@@ -160,7 +160,7 @@ void handle_particles(const int global_nx, const int global_ny, const int nx,
               &energy_deposition, &number_density, &microscopic_cs_scatter,
               &microscopic_cs_absorb, &macroscopic_cs_scatter,
               &macroscopic_cs_absorb, energy_deposition_tally,
-              &scatter_cs_index, &absorb_cs_index, rn, &speed);
+              &scatter_cs_index, &absorb_cs_index, rn, &speed, hist);
 
           if (result != PARTICLE_CONTINUE) {
             break;
@@ -178,7 +178,7 @@ void handle_particles(const int global_nx, const int global_ny, const int nx,
               particle, &energy_deposition, &number_density,
               &microscopic_cs_scatter, &microscopic_cs_absorb,
               &macroscopic_cs_scatter, &macroscopic_cs_absorb,
-              energy_deposition_tally, &cellx, &celly, &local_density);
+              energy_deposition_tally, &cellx, &celly, &local_density, hist);
 
           if (result != PARTICLE_CONTINUE) {
             break;
@@ -412,7 +412,7 @@ inline void update_tallies(const int nx, const int x_off,
                                   double* energy_deposition_tally,
                                   int* hist) {
 
-  double range[20] = {1.0e-10, 1.0e-9, 1.0e-8, 1.0e-7, 1.0e-6, 1.0e-5,
+  double range[22] = {1.0e-10, 1.0e-9, 1.0e-8, 1.0e-7, 1.0e-6, 1.0e-5,
                       1.0e-4, 1.0e-3, 1.0e-2, 1.0e-1, 1.0e+0, 1.0e+1,
                       1.0e+2, 1.0e+3, 1.0e+4, 1.0e+5, 1.0e+6, 1.0e+7,
                       1.0e+8, 1.0e+9, 1.0e+10, 1.0e+11};
