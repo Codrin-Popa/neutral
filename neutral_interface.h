@@ -31,12 +31,12 @@ size_t inject_particles(const int nparticles, const int global_nx,
     Particle** particles);
 
 
-void pack_energy_density(double* pack_energy_density,
+void pack_energy_density(double* packed_energy_density,
                          double* density,
                          double* energy_tally,
                          int local_nx, int local_ny);
 
-void unpack_energy_density(double* pack_energy_density,
+void unpack_energy_density(double* packed_energy_density,
                            double* energy_tally,
                            int local_nx, int local_ny);
 

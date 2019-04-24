@@ -651,27 +651,27 @@ void generate_random_numbers(const uint64_t pkey, const uint64_t master_key,
   *rn1 = rand.v[1] * factor + half_factor;
 }
 
-void pack_energy_density(double* pack_energy_density,
+void pack_energy_density(double* packed_energy_density,
                          double* density,
                          double* energy_tally,
                          int local_nx, int local_ny) {
 
   for(int i = 0; i < local_ny; i++) {
    for(int j = 0; j < local_nx; j++) {
-       pack_energy_density[(i*local_nx + j)*2] = density[i * local_nx + j];
-       pack_energy_density[(i*local_nx + j)*2 + 1] = energy_tally[i * local_nx + j];
+       packed_energy_density[(i*local_nx + j)*2] = density[i * local_nx + j];
+       packed_energy_density[(i*local_nx + j)*2 + 1] = energy_tally[i * local_nx + j];
    }
   }
 
 }
 
-void unpack_energy_density(double* pack_energy_density,
+void unpack_energy_density(double* packed_energy_density,
                            double* energy_tally,
                            int local_nx, int local_ny) {
 
   for(int i = 0; i < local_ny; i++) {
    for(int j = 0; j < local_nx; j++) {
-       energy_tally[i * local_nx + j] = pack_energy_density[(i*local_nx + j)*2 + 1];
+       energy_tally[i * local_nx + j] = packed_energy_density[(i*local_nx + j)*2 + 1];
    }
   }
 
