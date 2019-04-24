@@ -79,7 +79,8 @@ int main(int argc, char** argv) {
   allocate_data(&pack_energy_density,
                                   mesh.local_nx * mesh.local_ny * 2);
   pack_energy_density(pack_energy_density, shared_data.density,
-                      neutral_data.energy_tally, mesh.local_nx, mesh.local_ny);
+                      neutral_data.energy_deposition_tally,
+                      mesh.local_nx, mesh.local_ny);
   //Pack energy deposition tally and local_density
   // for(int i = 0; i < mesh.local_ny; i++) {
   //   for(int j = 0; j < mesh.local_nx; j++) {
@@ -170,7 +171,7 @@ int main(int argc, char** argv) {
   //          = pack_energy_density[(i*mesh.local_nx + j)*2 + 1];
   //   }
   // }
-  unpack_energy_density(pack_energy_density, neutral_data.energy_tally,
+  unpack_energy_density(pack_energy_density, neutral_data.energy_deposition_tally,
                         mesh.local_nx, mesh.local_ny);
 
 
