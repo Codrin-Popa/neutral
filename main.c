@@ -81,16 +81,6 @@ int main(int argc, char** argv) {
   pack_energy_density(packed_energy_density, shared_data.density,
                       neutral_data.energy_deposition_tally,
                       mesh.local_nx, mesh.local_ny);
-  //Pack energy deposition tally and local_density
-  // for(int i = 0; i < mesh.local_ny; i++) {
-  //   for(int j = 0; j < mesh.local_nx; j++) {
-  //       pack_energy_density[(i*mesh.local_nx + j)*2] =
-  //              shared_data.density[i * mesh.local_nx + j];
-  //
-  //       pack_energy_density[(i*mesh.local_nx + j)*2 + 1] =
-  //              neutral_data.energy_deposition_tally[i * mesh.local_nx + j];
-  //   }
-  // }
 
 
   // Main timestep loop where we will track each particle through time
@@ -165,12 +155,6 @@ int main(int argc, char** argv) {
     }
   }
 
-  // for(int i = 0; i < mesh.local_ny; i++) {
-  //   for(int j = 0; j < mesh.local_nx; j++) {
-  //       neutral_data.energy_deposition_tally[i * mesh.local_nx + j]
-  //          = pack_energy_density[(i*mesh.local_nx + j)*2 + 1];
-  //   }
-  // }
   unpack_energy_density(packed_energy_density, neutral_data.energy_deposition_tally,
                         mesh.local_nx, mesh.local_ny);
 
