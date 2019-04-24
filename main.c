@@ -64,7 +64,7 @@ int main(int argc, char** argv) {
   initialise_comms(&mesh);
   initialise_mesh_2d(&mesh);
   SharedData shared_data = {0};
-  initialise_shared_data_2d(mesh.local_nx, mesh.local_ny, mesh.pad, mesh.width, 
+  initialise_shared_data_2d(mesh.local_nx, mesh.local_ny, mesh.pad, mesh.width,
       mesh.height, neutral_data.neutral_params_filename, mesh.edgex, mesh.edgey, &shared_data);
 
   handle_boundary_2d(mesh.local_nx, mesh.local_ny, &mesh, shared_data.density,
@@ -74,6 +74,22 @@ int main(int argc, char** argv) {
   // Make sure initialisation phase is complete
   barrier();
 
+
+  double* pack_energy_density;
+  allocate_data(&pack_energy_density,
+                                  mesh.local_nx * mesh.local_ny * 2);
+  //Pack energy deposition tally and local_density
+  for(int i = 0; i < mesh.local_ny; i++) {
+    for(int j = 0; j < mesh.local_nx; j++) {
+        pack_energy_density[(i*mesh.local_nx + j)*2] =
+               shared_data.density[i * mesh.local_nx + j];
+
+        pack_energy_density[(i*mesh.local_nx + j)*2 + 1] =
+               neutral_data.energy_deposition_tally[i * mesh.local_nx + j];
+    }
+  }
+
+
   // Main timestep loop where we will track each particle through time
   int tt;
   double wallclock = 0.0;
@@ -81,7 +97,7 @@ int main(int argc, char** argv) {
 
   struct Profile profile;
 
- 
+
   for (tt = 1; tt <= mesh.niters; ++tt) {
 
     if (mesh.rank == MASTER) {
@@ -95,7 +111,7 @@ int main(int argc, char** argv) {
 
     uint64_t facet_events = 0;
     uint64_t collision_events = 0;
-     
+
     START_PROFILING(&profile);
     // Begin the main solve step
     solve_transport_2d(
@@ -110,7 +126,7 @@ int main(int argc, char** argv) {
         &facet_events, &collision_events);
 
     barrier();
-    
+
     const char p = '0' + tt;
     STOP_PROFILING(&profile, &p);
     double step_time = profile.profiler_entries[tt-1].time;
