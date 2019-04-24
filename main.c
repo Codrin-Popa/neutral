@@ -162,6 +162,14 @@ int main(int argc, char** argv) {
     }
   }
 
+  for(int i = 0; i < mesh.local_ny; i++) {
+    for(int j = 0; j < mesh.local_nx; j++) {
+        neutral_data.energy_deposition_tally[i * mesh.local_nx + j]
+           = pack_energy_density[(i*mesh.local_nx + j)*2 + 1];
+    }
+  }
+
+
   if (visit_dump) {
     plot_particle_density(&neutral_data, &mesh, tt, neutral_data.nparticles,
                           elapsed_sim_time);
