@@ -75,10 +75,10 @@ int main(int argc, char** argv) {
   barrier();
 
 
-  double* pack_energy_density;
-  allocate_data(&pack_energy_density,
+  double* packed_energy_density;
+  allocate_data(&packed_energy_density,
                                   mesh.local_nx * mesh.local_ny * 2);
-  pack_energy_density(pack_energy_density, shared_data.density,
+  pack_energy_density(packed_energy_density, shared_data.density,
                       neutral_data.energy_deposition_tally,
                       mesh.local_nx, mesh.local_ny);
   //Pack energy deposition tally and local_density
@@ -124,7 +124,7 @@ int main(int argc, char** argv) {
         mesh.neighbours, neutral_data.local_particles,
         shared_data.density, mesh.edgex, mesh.edgey, mesh.edgedx, mesh.edgedy,
         neutral_data.cs_scatter_table, neutral_data.cs_absorb_table,
-        pack_energy_density, neutral_data.nfacets_reduce_array,
+        packed_energy_density, neutral_data.nfacets_reduce_array,
         neutral_data.ncollisions_reduce_array, neutral_data.nprocessed_reduce_array,
         &facet_events, &collision_events);
 
@@ -171,7 +171,7 @@ int main(int argc, char** argv) {
   //          = pack_energy_density[(i*mesh.local_nx + j)*2 + 1];
   //   }
   // }
-  unpack_energy_density(pack_energy_density, neutral_data.energy_deposition_tally,
+  unpack_energy_density(packed_energy_density, neutral_data.energy_deposition_tally,
                         mesh.local_nx, mesh.local_ny);
 
 
