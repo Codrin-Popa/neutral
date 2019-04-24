@@ -345,7 +345,7 @@ __global__ void handle_particles_kernel(
           // Energy is too low, so mark the particle for deletion
           // Need to store tally information as finished with particle
           atomicAdd(
-              &energy_deposition_tally[(celly - pad) * nx + (cellx - pad)],
+              &energy_deposition_tally[((celly - pad) * nx + (cellx - pad))*2 + 1],
               energy_deposition * inv_ntotal_particles);
           energy_deposition = 0.0;
           break;
@@ -452,7 +452,7 @@ __global__ void handle_particles_kernel(
             microscopic_cs_scatter + microscopic_cs_absorb, pabsorb);
 
         // Need to store tally information as finished with particle
-        atomicAdd(&energy_deposition_tally[(celly - pad) * nx + (cellx - pad)],
+        atomicAdd(&energy_deposition_tally[((celly - pad) * nx + (cellx - pad))*2 + 1],
                   energy_deposition * inv_ntotal_particles);
         energy_deposition = 0.0;
         break;
