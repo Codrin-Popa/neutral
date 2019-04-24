@@ -102,7 +102,7 @@ void handle_particles(const int global_nx, const int global_ny, const int nx,
       // Determine the current cell
       int cellx = particle->cellx - x_off + pad;
       int celly = particle->celly - y_off + pad;
-      double local_density = density[celly * (nx + 2 * pad) + cellx];
+      double local_density = energy_deposition_tally[(celly * (nx + 2 * pad) + cellx)*2];
 
       // Fetch the cross sections and prepare related quantities
       double microscopic_cs_scatter = microscopic_cs_for_energy(
@@ -371,7 +371,7 @@ facet_event(const int global_nx, const int global_ny, const int nx,
   // Update the data based on new cell
   *cellx = particle->cellx - x_off;
   *celly = particle->celly - y_off;
-  *local_density = density[*celly * nx + *cellx];
+  *local_density = energy_deposition_tally[(*celly * nx + *cellx)*2];
   *number_density = (*local_density * AVOGADROS / MOLAR_MASS);
   *macroscopic_cs_scatter = *number_density * *microscopic_cs_scatter * BARNS;
   *macroscopic_cs_absorb = *number_density * *microscopic_cs_absorb * BARNS;
@@ -415,7 +415,7 @@ inline void update_tallies(const int nx, const int x_off,
   const int celly = particle->celly - y_off;
 
 #pragma omp atomic update
-  energy_deposition_tally[celly * nx + cellx] +=
+  energy_deposition_tally[(celly * nx + cellx)*2 + 1] +=
       energy_deposition * inv_ntotal_particles;
 }
 

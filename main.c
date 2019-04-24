@@ -121,7 +121,7 @@ int main(int argc, char** argv) {
         mesh.neighbours, neutral_data.local_particles,
         shared_data.density, mesh.edgex, mesh.edgey, mesh.edgedx, mesh.edgedy,
         neutral_data.cs_scatter_table, neutral_data.cs_absorb_table,
-        neutral_data.energy_deposition_tally, neutral_data.nfacets_reduce_array,
+        pack_energy_density, neutral_data.nfacets_reduce_array,
         neutral_data.ncollisions_reduce_array, neutral_data.nprocessed_reduce_array,
         &facet_events, &collision_events);
 
