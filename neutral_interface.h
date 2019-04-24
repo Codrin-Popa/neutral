@@ -10,7 +10,7 @@ extern "C" {
 
 void solve_transport_2d(
     const int nx, const int ny, const int global_nx, const int global_ny,
-    const uint64_t master_key, const int pad, const int x_off, const int y_off, 
+    const uint64_t master_key, const int pad, const int x_off, const int y_off,
     const double dt, const int ntotal_particles, int* nlocal_particles,
     const int* neighbours, Particle* particles, const double* density,
     const double* edgex, const double* edgey, const double* edgedx,
@@ -30,6 +30,15 @@ size_t inject_particles(const int nparticles, const int global_nx,
     const double* edgey, const double initial_energy,
     Particle** particles);
 
+
+void pack_energy_density(double* pack_energy_density,
+                         double* density,
+                         double* energy_tally,
+                         int local_nx, int local_ny);
+
+void unpack_energy_density(double* pack_energy_density,
+                           double* energy_tally,
+                           int local_nx, int local_ny);
 
 // Validates the results of the simulation
 void validate(const int nx, const int ny, const char* params_filename,
